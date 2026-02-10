@@ -31,11 +31,11 @@ add_action( 'woocommerce_edit_account_form', function() {
     ?>
     <div class="custom-fields-v2" style="clear: both; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;">
         <p class="form-row form-row-wide">
-            <label>我的会员码 (Membership Code)</label>
+            <label> Membership Code </label>
             <input type="text" value="<?php echo $code; ?>" readonly style="background:#f4f4f4; border:1px solid #ddd;" />
         </p>
         <p class="form-row form-row-wide">
-            <label for="custom_phone">联系电话 (Phone)</label>
+            <label for="custom_phone">custom_phone (Phone)</label>
             <input type="text" name="custom_phone" value="<?php echo esc_attr(get_user_meta($user->ID, 'custom_phone', true)); ?>" />
         </p>
     </div>
