@@ -1,0 +1,8 @@
+﻿Type,SKU,Name,Published,Visibility in catalog,Description,In stock?,Stock,Regular price,Categories,Attribute 1 name,Attribute 1 value(s),Attribute 2 name,Attribute 2 value(s)
+simple,DE-IMG-101,Somatom go.Top,1,visible,High-performance AI-supported CT scanner for precise diagnostics.,1,2,285000,Imaging,Manufacturer,Siemens Healthineers,Certification,CE / FDA
+simple,DE-SUR-202,Kinevo 900,1,visible,Robotic visualization system with 4K 3D and fluorescence options.,1,1,155000,Surgical,Manufacturer,Carl Zeiss Meditec,Certification,CE / ISO 13485
+simple,DE-DIA-303,Cobas b 123,1,visible,Point-of-care blood gas analysis system for rapid results.,1,15,12500,Diagnostics,Manufacturer,Roche Diagnostics,Certification,CE / IVDR
+simple,DE-ORP-404,Genium X3,1,visible,Microprocessor-controlled prosthetic knee for waterproof daily use.,1,5,45000,Orthopedics,Manufacturer,Ottobock,Certification,CE
+simple,DE-DEN-505,Teneo,1,visible,Premium dental treatment center with integrated workflow.,1,3,38000,Dental,Manufacturer,Dentsply Sirona,Certification,CE / ISO 9001
+simple,DE-OPT-606,VisuMax 800,1,visible,Next-generation femtosecond laser for SMILE pro procedures.,1,1,210000,Ophthalmology,Manufacturer,Carl Zeiss Meditec,Certification,CE
+simple,DE-STR-707,Clinoclav 45,1,visible,Large steam sterilizer designed for clinical environments.,1,8,18500,Sterilization,Manufacturer,Melag,Certification,CE 0197
