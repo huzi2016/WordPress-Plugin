@@ -89,13 +89,13 @@ add_action( 'pre_user_query', function( $query ) {
 /**
  * 4. 会员中心菜单集成
  */
-add_action('init', function() { add_rewrite_endpoint('member-center', EP_PAGES); });
-add_filter('woocommerce_account_menu_items', function($items) {
-    $logout = $items['customer-logout'] ?? ''; unset($items['customer-logout']);
-    $items['member-center'] = 'Member Center';
-    if($logout) $items['customer-logout'] = $logout;
-    return $items;
-});
-add_action('woocommerce_account_member-center_endpoint', function() {
-    echo '<h3>Membership</h3>' . do_shortcode('[pms-account]');
-});
+// add_action('init', function() { add_rewrite_endpoint('member-center', EP_PAGES); });
+// add_filter('woocommerce_account_menu_items', function($items) {
+//     $logout = $items['customer-logout'] ?? ''; unset($items['customer-logout']);
+//     $items['member-center'] = 'Member Center';
+//     if($logout) $items['customer-logout'] = $logout;
+//     return $items;
+// });
+// add_action('woocommerce_account_member-center_endpoint', function() {
+//     echo '<h3>Membership</h3>' . do_shortcode('[pms-account]');
+// });
