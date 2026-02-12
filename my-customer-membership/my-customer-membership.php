@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Simple Membership Pro (Points & Checkout Edition)
- * Description: Membership levels, auto-downgrade, Reward Points management, and WooCommerce AJAX redemption with validation.
- * Version: 1.6
+ * Description: Membership levels, auto-downgrade, Reward Points management, WooCommerce AJAX redemption, and auto-restore on refund.
+ * Version: 1.8
  * Author: Weiwei Chen
  */
 
@@ -41,7 +41,6 @@ function smp_auto_assign_info_and_points($user_id) {
     
     $user = new WP_User($user_id);
     $user->set_role('basic_member');
-
     update_user_meta($user_id, 'smp_points', 100);
 }
 
@@ -142,86 +141,130 @@ function smp_user_card_shortcode() {
 }
 
 /**
- * 8. WooCommerce Checkout: AJAX UI for Points Redemption with Validation
+ * 8. WooCommerce Checkout: AJAX UI for Points Redemption
  */
 add_action('woocommerce_review_order_before_submit', 'smp_checkout_points_ui');
 function smp_checkout_points_ui() {
     $user_id = get_current_user_id();
     if (!$user_id) return;
     $balance = intval(get_user_meta($user_id, 'smp_points', true));
-    if ($balance > 0) {
-        ?>
-        <div id="smp_points_box" style="background:#f9f9f9; padding:15px; border:1px solid #ddd; margin:20px 0;">
-            <h4 style="margin-top:0;">Membership Points Redemption</h4>
-            <p>Available: <strong id="smp_max_points"><?php echo $balance; ?></strong> points.</p>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <input type="number" id="smp_points_input" name="smp_points_input" placeholder="Amount" style="width:120px;">
-                <button type="button" id="smp_apply_btn" class="button">Apply Discount</button>
-            </div>
-            <div id="smp_error_msg" style="color:#d63638; font-size:13px; margin-top:8px; display:none;">
-                You cannot use more than your available points.
-            </div>
-            <small style="display:block; margin-top:8px;">* 100 points = €1 discount.</small>
-        </div>
-        <script>
-        jQuery(document).ready(function($) {
-            var maxPoints = parseInt($('#smp_max_points').text());
-            
-            // Inline validation logic
-            $('#smp_points_input').on('input', function() {
-                var inputVal = parseInt($(this).val());
-                if (inputVal > maxPoints) {
-                    $('#smp_error_msg').show();
-                    $('#smp_apply_btn').prop('disabled', true).css('opacity', '0.5');
-                } else {
-                    $('#smp_error_msg').hide();
-                    $('#smp_apply_btn').prop('disabled', false).css('opacity', '1');
-                }
-            });
+    if ($balance <= 0) return;
 
-            // Trigger AJAX update
-            $(document).on('click', '#smp_apply_btn', function(e) {
-                e.preventDefault();
-                $('body').trigger('update_checkout'); 
-            });
+    $applied = WC()->session->get('smp_applied_points') ?: '';
+    ?>
+    <div id="smp_points_box" style="background:#f9f9f9; padding:15px; border:1px solid #ddd; margin:20px 0; border-radius:5px;">
+        <h4 style="margin-top:0;">Membership Points Redemption</h4>
+        <p>Available: <strong id="smp_max_points"><?php echo $balance; ?></strong> points.</p>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input type="number" id="smp_points_input" name="smp_points_input" value="<?php echo esc_attr($applied); ?>" placeholder="Amount" min="0" style="width:120px;">
+            <button type="button" id="smp_apply_btn" class="button">Apply Discount</button>
+        </div>
+        <div id="smp_error_msg" style="color:#d63638; font-size:13px; margin-top:8px; display:none;">
+            Insufficient points balance.
+        </div>
+        <small style="display:block; margin-top:8px;">* 100 points = €1 discount.</small>
+    </div>
+    <script>
+    jQuery(document).ready(function($) {
+        var maxPoints = parseInt($('#smp_max_points').text());
+        $('#smp_points_input').on('input', function() {
+            var val = parseInt($(this).val()) || 0;
+            if (val > maxPoints || val < 0) {
+                $('#smp_error_msg').show();
+                $('#smp_apply_btn').prop('disabled', true).css('opacity', '0.5');
+            } else {
+                $('#smp_error_msg').hide();
+                $('#smp_apply_btn').prop('disabled', false).css('opacity', '1');
+            }
         });
-        </script>
-        <?php
-    }
+        $(document).on('click', '#smp_apply_btn', function(e) {
+            e.preventDefault();
+            $('body').trigger('update_checkout'); 
+        });
+    });
+    </script>
+    <?php
 }
 
 /**
- * 9. Cart Calculation: Add discount fee
+ * 9. Cart Calculation: Add discount fee with AJAX and Session persistence
  */
 add_action('woocommerce_cart_calculate_fees', 'smp_apply_checkout_fee', 25);
 function smp_apply_checkout_fee($cart) {
     if (is_admin() && !defined('DOING_AJAX')) return;
+
     $points_to_use = 0;
     if (!empty($_POST['post_data'])) {
         parse_str($_POST['post_data'], $post_data);
-        $points_to_use = isset($post_data['smp_points_input']) ? intval($post_data['smp_points_input']) : 0;
+        if (isset($post_data['smp_points_input'])) {
+            $points_to_use = intval($post_data['smp_points_input']);
+            WC()->session->set('smp_applied_points', $points_to_use);
+        }
+    } else {
+        $points_to_use = WC()->session->get('smp_applied_points') ?: 0;
     }
+
     if ($points_to_use > 0) {
-        $balance = intval(get_user_meta(get_current_user_id(), 'smp_points', true));
+        $user_id = get_current_user_id();
+        $balance = intval(get_user_meta($user_id, 'smp_points', true));
         if ($points_to_use <= $balance) {
-            $cart->add_fee('Points Discount', ($points_to_use / 100) * -1);
+            $discount = ($points_to_use / 100) * -1;
+            $cart->add_fee(__('Points Discount', 'smp'), $discount);
         }
     }
 }
 
 /**
- * 10. Final Deduction: Reduce user points after order completion
+ * 10. Final Deduction: Link points to order and reduce user balance
  */
+add_action('woocommerce_checkout_create_order', 'smp_add_points_to_order_metadata', 10, 2);
+function smp_add_points_to_order_metadata($order, $data) {
+    $points_to_use = WC()->session->get('smp_applied_points');
+    if ($points_to_use > 0) {
+        $order->update_meta_data('_smp_points_redeemed', $points_to_use);
+    }
+}
+
 add_action('woocommerce_checkout_update_order_meta', 'smp_deduct_points_on_order', 10, 2);
 function smp_deduct_points_on_order($order_id, $data) {
-    if (isset($_POST['smp_points_input']) && !empty($_POST['smp_points_input'])) {
-        $used = intval($_POST['smp_points_input']);
-        $uid = get_current_user_id();
-        if ($uid && $used > 0) {
-            $current = intval(get_user_meta($uid, 'smp_points', true));
+    $used = WC()->session->get('smp_applied_points');
+    $uid = get_current_user_id();
+    if ($uid && $used > 0) {
+        $current = intval(get_user_meta($uid, 'smp_points', true));
+        if ($current >= $used) {
             update_user_meta($uid, 'smp_points', max(0, $current - $used));
             $order = wc_get_order($order_id);
-            $order->add_order_note("Redeemed $used points for this order.");
+            $order->add_order_note(sprintf('Customer redeemed %d points for this order.', $used));
+            WC()->session->set('smp_applied_points', null);
+        }
+    }
+}
+
+/**
+ * 11. Point Restoration: Restore points if order is Cancelled or Refunded
+ */
+add_action('woocommerce_order_status_changed', 'smp_restore_points_on_cancel_or_refund', 10, 4);
+function smp_restore_points_on_cancel_or_refund($order_id, $old_status, $new_status, $order) {
+    $target_statuses = array('cancelled', 'refunded');
+
+    if (in_array($new_status, $target_statuses)) {
+        $points_redeemed = $order->get_meta('_smp_points_redeemed');
+
+        if ($points_redeemed > 0) {
+            $user_id = $order->get_user_id();
+            if ($user_id) {
+                // Prevent duplicate restoration
+                $already_restored = $order->get_meta('_smp_points_restored');
+                
+                if (!$already_restored) {
+                    $current_points = intval(get_user_meta($user_id, 'smp_points', true));
+                    update_user_meta($user_id, 'smp_points', $current_points + intval($points_redeemed));
+
+                    $order->update_meta_data('_smp_points_restored', '1');
+                    $order->add_order_note(sprintf('Order %s: Automatically restored %d points to the user.', ucfirst($new_status), $points_redeemed));
+                    $order->save();
+                }
+            }
         }
     }
 }
